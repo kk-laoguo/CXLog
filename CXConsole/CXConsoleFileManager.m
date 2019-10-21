@@ -12,7 +12,6 @@
 @interface CXConsoleFileManager ()
 @property (nonatomic, copy) NSString *filePath;
 @property (nonatomic, strong) CXMonitorFileChange *fileChange;
-
 @end
 
 @implementation CXConsoleFileManager

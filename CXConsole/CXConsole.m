@@ -15,6 +15,7 @@
 
 @property(nonatomic, strong) UIWindow *consoleWindow;
 @property(nonatomic, strong) CXConsoleController *controller;
+@property(nonatomic, assign) BOOL printLog;
 
 @end
 
@@ -37,11 +38,19 @@
 }
 #pragma mark - Public Methods
 + (void)show {
-    
-    [[CXConsoleFileManager sharedIntance] configuration];
+
     CXConsole *console = [CXConsole sharedInstance];
+    if (!console.printLog) {
+        [[CXConsoleFileManager sharedIntance] configuration];
+    }
     [console initConsoleWindowIfNeeded];
     console.consoleWindow.hidden = NO;
+}
++ (void)printLog:(id)logString {
+    CXConsole *console = [CXConsole sharedInstance];
+    console.printLog = YES;
+    [CXConsole show];
+    [console.controller printLog:logString];
 }
 + (void)clear {
     [[CXConsole sharedInstance].controller clear];
@@ -55,15 +64,15 @@
 - (void)initConsoleWindowIfNeeded {
     
     if (!_consoleWindow) {
-        
         _consoleWindow = [[UIWindow alloc] init];
         __weak __typeof(self)weakSelf = self;
         _consoleWindow.cx_hitTestBlock = ^UIView *(CGPoint point, UIEvent *event, UIView *originalView) {
             return originalView == weakSelf.consoleWindow ? nil : originalView;
         };
         _consoleWindow.backgroundColor = nil;
-        CXConsoleController *controller = [CXConsoleController new];
-        _consoleWindow.rootViewController = controller;
+        _controller = [[CXConsoleController alloc] init];
+        _controller.printLog = self.printLog;
+        _consoleWindow.rootViewController = _controller;
     }
 }
 

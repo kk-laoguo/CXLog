@@ -25,8 +25,6 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    [CXConsole show];
-    
 //    NSLog(@"------->%s", __func__);
 }
 
@@ -47,6 +45,7 @@
     long i = random();
     NSLog(@"%ld",i);
     NSLog(@"%@",self);
+    [CXConsole printLog:@"NSString log [NSTimer scheduledTimerWithTimeInterval:0.5 target:self selector:@selector(log) userInfo:nil repeats:YES"];
 }
 
 

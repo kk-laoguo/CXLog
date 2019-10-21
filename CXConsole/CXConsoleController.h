@@ -12,6 +12,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface CXConsoleController : UIViewController
 
+@property (nonatomic, assign) BOOL printLog;
+
+- (void)printLog:(id)logString;
 - (void)clear;
 
 @end

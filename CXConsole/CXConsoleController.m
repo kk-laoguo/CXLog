@@ -13,14 +13,58 @@
 
 static const CGFloat PopoverBtnPointX = 15;
 
+@interface CXConsoleItem : NSObject
+
+@property(nonatomic, copy) NSAttributedString *timeString;
+@property(nonatomic, copy) NSAttributedString *logString;
+
+@end
+
+@implementation CXConsoleItem
+
++ (instancetype)printLog:(id)logString timeSting:(NSString *)timeString {
+    
+    CXConsoleItem *item = [[CXConsoleItem alloc] init];
+
+    NSMutableParagraphStyle *paraStyle = [[NSMutableParagraphStyle alloc] init];
+    paraStyle.lineBreakMode = NSLineBreakByWordWrapping;
+    paraStyle.alignment = NSTextAlignmentLeft;
+    paraStyle.lineSpacing = 8;
+    paraStyle.paragraphSpacing = 10;
+    paraStyle.minimumLineHeight = 16;
+    paraStyle.maximumLineHeight = 16;
+    
+    NSDictionary<NSAttributedStringKey, id> *textAttri =  @{NSFontAttributeName:[UIFont fontWithName:@"Menlo" size:12],NSForegroundColorAttributeName:[UIColor whiteColor],NSParagraphStyleAttributeName:paraStyle};
+    
+    NSMutableDictionary<NSAttributedStringKey, id> *timeAttri = textAttri.mutableCopy;
+    timeAttri[NSForegroundColorAttributeName] = [UIColor colorWithWhite:1 alpha:0.6];
+    
+     item.timeString = [[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"%@ ", timeString] attributes:timeAttri];
+    
+    NSAttributedString *string = nil;
+    if ([logString isKindOfClass:[NSAttributedString class]]) {
+        string = (NSAttributedString *)logString;
+        
+    } else if ([logString isKindOfClass:[NSString class]]) {
+        string = [[NSAttributedString alloc] initWithString:(NSString *)logString attributes:textAttri];
+        
+    } else {
+        string = [[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"%@", logString] attributes:textAttri];
+    }
+    item.logString = string;
+    return item;
+}
+
+@end
+
 @interface CXConsoleController ()
 <UITextViewDelegate,
 UITextFieldDelegate,
 CAAnimationDelegate> {
-    
     BOOL _scrollBottomAble;
 }
-@property(nonatomic, strong) UIView *containerView;
+@property (nonatomic, strong) NSMutableArray<CXConsoleItem *> *logItems;
+@property (nonatomic, strong) UIView *containerView;
 @property (nonatomic, strong) NSString *regexString;
 @property (nonatomic, strong) UIButton *popoverBtn;
 @property (nonatomic, strong) UITextView *textView;
@@ -28,7 +72,8 @@ CAAnimationDelegate> {
 @property (nonatomic, strong) UITextField *searchTextField;
 @property (nonatomic, strong) UIButton *deleBtn;
 @property (nonatomic, strong) UIButton *hiddenBtn;
-@property(nonatomic, assign) BOOL popoverAnimating;
+@property (nonatomic, assign) BOOL popoverAnimating;
+@property (nonatomic, strong) NSDateFormatter *dateFormatter;
 
 @end
 
@@ -59,7 +104,7 @@ CAAnimationDelegate> {
     self.textView.cx_height = self.searchView.cx_top;
     self.hiddenBtn.frame = CGRectMake(containerViewSize.width - 40, 15, 35, 35);
     if (_scrollBottomAble) {
-        [self scrollToBottom];
+        [self pm_scrollToBottom];
     }
     
 }
@@ -67,12 +112,14 @@ CAAnimationDelegate> {
 - (void)viewDidLoad {
     
     [super viewDidLoad];
-    
     self.view.backgroundColor = [UIColor clearColor];
-    _scrollBottomAble = YES;
-    [self pm_setupUI];
-    [self pm_updateTextView];
     
+    self.logItems = [[NSMutableArray alloc] init];
+    _scrollBottomAble = YES;
+    self.dateFormatter = [[NSDateFormatter alloc] init];
+    self.dateFormatter.dateFormat = @"HH:mm:ss.SSS";
+    [self pm_setupUI];
+  
     __weak __typeof(self)weakSelf = self;
     self.view.cx_hitTestBlock = ^UIView *(CGPoint point, UIEvent *event, UIView *originalView) {
         if (originalView == weakSelf.view) {
@@ -80,11 +127,12 @@ CAAnimationDelegate> {
         }
         return originalView;
     };
-    
-    [[CXConsoleFileManager sharedIntance] watchLog:^(NSInteger type) {
-        [weakSelf pm_updateTextView];
-    }];
-  
+    if (!self.printLog) {
+        [self pm_updateTextView];
+        [[CXConsoleFileManager sharedIntance] watchLog:^(NSInteger type) {
+            [weakSelf pm_updateTextView];
+        }];
+    }
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillSHow:) name:UIKeyboardWillShowNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
 }
@@ -147,6 +195,7 @@ CAAnimationDelegate> {
     self.searchTextField.returnKeyType = UIReturnKeyDone;
     self.searchTextField.borderStyle = UITextBorderStyleRoundedRect;
     self.searchTextField.delegate = self;
+    self.searchTextField.backgroundColor = [UIColor clearColor];
     [self.searchTextField addTarget:self action:@selector(textChange:) forControlEvents:(UIControlEventEditingChanged)];
     [self.searchView addSubview:self.searchTextField];
     
@@ -156,11 +205,105 @@ CAAnimationDelegate> {
     [self.deleBtn addTarget:self action:@selector(clear) forControlEvents:UIControlEventTouchUpInside];
     [self.searchView addSubview:self.deleBtn];
 }
+#pragma mark - Public Methods
+- (void)clear {
+    self.textView.text = nil;
+    self.textView.contentOffset = CGPointZero;
+    if (!self.printLog) {
+        [[CXConsoleFileManager sharedIntance] clearLog];
+    }
+    [self.logItems removeAllObjects];
+}
+- (void)printLog:(id)logString {
+    CXConsoleItem *item = [CXConsoleItem printLog:logString timeSting:[self.dateFormatter stringFromDate:[NSDate date]]];
+    [self.logItems addObject:item];
+    [self pm_printLog];
+    
+}
+#pragma mark - Private Methods
+
+- (void)pm_printLog {
+
+    NSMutableAttributedString *string = [[NSMutableAttributedString alloc] init];
+    [self.logItems enumerateObjectsUsingBlock:^(CXConsoleItem *item, NSUInteger idx, BOOL * _Nonnull stop) {
+        if (self.regexString.length > 0) {
+            if ([item.logString.string containsString:self.regexString] ||
+                [item.timeString.string containsString:self.regexString]) {
+                if (string.length > 0) {
+                    [string appendAttributedString:[[NSAttributedString alloc] initWithString:@"\n"]];
+                }
+                [string appendAttributedString:item.timeString];
+                [string appendAttributedString:item.logString];
+            }
+        } else {
+            if (string.length > 0) {
+                [string appendAttributedString:[[NSAttributedString alloc] initWithString:@"\n"]];
+            }
+            [string appendAttributedString:item.timeString];
+            [string appendAttributedString:item.logString];
+        }
+    }];
+    self.textView.attributedText = string;
+    if (_scrollBottomAble) {
+        [self pm_scrollToBottom];
+    }
+}
+- (void)pm_updateTextView {
+    
+    NSString *string = [[CXConsoleFileManager sharedIntance] readLog];
+    if (string.length == 0) {
+        return;
+    }
+    NSMutableAttributedString *attriString = [[NSMutableAttributedString alloc] initWithString:string];
+    if (self.regexString.length > 0) {
+        NSArray *dataArray = [string componentsSeparatedByString:@"\n"];
+        NSMutableArray *newArray = [NSMutableArray array];
+        for (NSString *string in dataArray) {
+            if ([string containsString:self.regexString]) {
+                [newArray addObject:string];
+            }
+        }
+        attriString = [self textAttributedStringWithString:[newArray componentsJoinedByString:@"\n"]];
+        self.textView.attributedText = attriString;
+    } else {
+        attriString = [self textAttributedStringWithString:string];
+        self.textView.attributedText = attriString;
+    }
+    if (_scrollBottomAble) {
+        [self pm_scrollToBottom];
+    }
+    
+}
+// 富文本设置
+- (NSMutableAttributedString *)textAttributedStringWithString:(NSString *)string {
+    
+    NSMutableAttributedString *attributedString = [[NSMutableAttributedString alloc] initWithString:string];
+    [attributedString addAttribute:NSFontAttributeName value:[UIFont systemFontOfSize:12] range:NSMakeRange(0, attributedString.length)];
+    [attributedString addAttribute:NSForegroundColorAttributeName value:[UIColor whiteColor] range:NSMakeRange(0, attributedString.length)];
+    NSMutableParagraphStyle *paraStyle = [[NSMutableParagraphStyle alloc] init];
+    paraStyle.lineBreakMode = NSLineBreakByWordWrapping;
+    paraStyle.alignment = NSTextAlignmentLeft;
+    paraStyle.lineSpacing = 8;
+    paraStyle.paragraphSpacing = 12;
+    [attributedString addAttribute: NSParagraphStyleAttributeName value:paraStyle range: NSMakeRange(0, attributedString.length)];
+    return attributedString;
+}
+
+- (void)pm_scrollToBottom {
+    self.textView.layoutManager.allowsNonContiguousLayout = NO;
+    [self.textView scrollRangeToVisible:NSMakeRange(self.textView.text.length, 1)];
+}
+
 #pragma mark - SearchText
 - (void)textChange:(UITextField *)tf {
     self.regexString = tf.text;
-    [self pm_updateTextView];
+    if (!self.printLog) {
+        [self pm_updateTextView];
+    } else {
+        [self pm_printLog];
+    }
 }
+
 
 #pragma mark - Target Methods
 - (void)handlePopoverTouchEvent:(UIButton *)button {
@@ -232,7 +375,6 @@ CAAnimationDelegate> {
         scale.removedOnCompletion = NO;
         [self.popoverBtn.layer addAnimation:scale forKey:@"scale"];
     }
-    
 }
 
 #pragma mark - CAAnimationDelegate
@@ -240,33 +382,7 @@ CAAnimationDelegate> {
     [CXConsole hide];
     [self.popoverBtn.layer removeAnimationForKey:@"scale"];
 }
-- (void)pm_updateTextView {
-    
-    NSString *string = [[CXConsoleFileManager sharedIntance] readLog];
-    if (string.length == 0) {
-        return;
-    }
-    NSMutableAttributedString *attriString = [[NSMutableAttributedString alloc] initWithString:string];
-    if (self.regexString.length > 0) {
-        NSArray *dataArray = [string componentsSeparatedByString:@"\n"];
-        NSMutableArray *newArray = [NSMutableArray array];
-        for (NSString *string in dataArray) {
-            if ([string containsString:self.regexString]) {
-                [newArray addObject:string];
-            }
-        }
-        attriString = [self textAttributedStringWithString:[newArray componentsJoinedByString:@"\n"]];
-        self.textView.attributedText = attriString;
-    } else {
-        attriString = [self textAttributedStringWithString:string];
-        self.textView.attributedText = attriString;
-    }
-    
-    if (_scrollBottomAble) {
-        [self scrollToBottom];
-    }
-    
-}
+
 #pragma mark - PanGestureRecognizer
 - (void)handlePopoverPanGestureRecognizer:(UIPanGestureRecognizer *)gesture {
     
@@ -292,40 +408,12 @@ CAAnimationDelegate> {
             break;
     }
 }
-// 富文本设置
-- (NSMutableAttributedString *)textAttributedStringWithString:(NSString *)string {
-    NSMutableAttributedString *attributedString = [[NSMutableAttributedString alloc] initWithString:string];
-    // 字号
-    [attributedString addAttribute: NSFontAttributeName value:[UIFont systemFontOfSize:12] range: NSMakeRange(0, attributedString.length)];
-    // 字体颜色
-    [attributedString addAttribute: NSForegroundColorAttributeName value:[UIColor whiteColor] range: NSMakeRange(0, attributedString.length)];
-    NSMutableParagraphStyle *paraStyle = [[NSMutableParagraphStyle alloc] init];
-    paraStyle.lineBreakMode = NSLineBreakByWordWrapping;
-    paraStyle.alignment = NSTextAlignmentLeft;
-    paraStyle.lineSpacing = 8;
-    paraStyle.paragraphSpacing = 12;
-    [attributedString addAttribute: NSParagraphStyleAttributeName value:paraStyle range: NSMakeRange(0, attributedString.length)];
-    return attributedString;
-}
-
-- (void)scrollToBottom {
-    self.textView.layoutManager.allowsNonContiguousLayout = NO;
-    [self.textView scrollRangeToVisible:NSMakeRange(self.textView.text.length, 1)];
-}
-
+#pragma mark - ScrollViewDelegate
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
     _scrollBottomAble = NO;
 }
-
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
     _scrollBottomAble = YES;
-}
-
-#pragma mark - Public Methods
-- (void)clear {
-    self.textView.text = nil;
-    self.textView.contentOffset = CGPointZero;
-    [[CXConsoleFileManager sharedIntance] clearLog];
 }
 
 #pragma mark - Notification
@@ -348,7 +436,6 @@ CAAnimationDelegate> {
     [textField resignFirstResponder];
     return YES;
 }
-
 
 
 

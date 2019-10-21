@@ -10,9 +10,9 @@ Pod::Spec.new do |spec|
 
 
   spec.name         = "CXConsole"
-  spec.version      = "0.0.1"
+  spec.version      = "1.0.0"
   spec.summary      = "iOS端日志悬浮窗"
-  spec.platform        = :ios, "8.0"
+  spec.platform     = :ios, "8.0"
 
   spec.description  = <<-DESC
   采用写入文件的方式将NSLog写入Cache文件内，并显示到手机上；方便测试查看。
@@ -21,7 +21,7 @@ Pod::Spec.new do |spec|
 
   spec.license      = "MIT"
   spec.author             = { "zainguo" => "572249347@qq.com" }
-  spec.source       = { :git => "https://github.com/gouzyi/CXLog.git", :tag => "#{spec.version}" }
+  spec.source       = { :git => "https://github.com/gouzyi/CXLog.git", :tag => spec.version.to_s}
 
   spec.requires_arc = true
 
