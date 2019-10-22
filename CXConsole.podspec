@@ -10,7 +10,7 @@ Pod::Spec.new do |spec|
 
 
   spec.name         = "CXConsole"
-  spec.version      = "1.0.0"
+  spec.version      = "1.0.1"
   spec.summary      = "iOS端日志悬浮窗"
   spec.platform     = :ios, "8.0"
 
@@ -20,14 +20,14 @@ Pod::Spec.new do |spec|
   spec.homepage     = "https://github.com/gouzyi/CXLog.git"
 
   spec.license      = "MIT"
-  spec.author             = { "zainguo" => "572249347@qq.com" }
+  spec.author       = { "zainguo" => "572249347@qq.com" }
   spec.source       = { :git => "https://github.com/gouzyi/CXLog.git", :tag => spec.version.to_s}
 
   spec.requires_arc = true
 
-  spec.frameworks = 'Foundation', 'UIKit'
+  spec.frameworks   = 'Foundation', 'UIKit'
 
-  spec.source_files  = "CXConsole", "CXConsole/**/*.{h,m}"
+  spec.source_files = "CXConsole", "CXConsole/**/*.{h,m}"
 
   spec.public_header_files = "CXConsole/**/*.h"
 

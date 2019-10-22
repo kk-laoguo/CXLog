@@ -11,7 +11,7 @@
 @interface CXConsole : NSObject
 
 + (instancetype)sharedInstance;
-/// 采用写文件的格式直接读取NSLog所有打印信息
+/// 采用写文件的格式直接读取NSLog所有打印信息, 打印到控制台
 + (void)show;
 /// 打印日志到控制台
 /// @param logString 需要打印的日志

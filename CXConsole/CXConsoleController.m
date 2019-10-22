@@ -195,7 +195,7 @@ CAAnimationDelegate> {
     self.searchTextField.returnKeyType = UIReturnKeyDone;
     self.searchTextField.borderStyle = UITextBorderStyleRoundedRect;
     self.searchTextField.delegate = self;
-    self.searchTextField.backgroundColor = [UIColor clearColor];
+    self.searchTextField.backgroundColor = [UIColor whiteColor];
     [self.searchTextField addTarget:self action:@selector(textChange:) forControlEvents:(UIControlEventEditingChanged)];
     [self.searchView addSubview:self.searchTextField];
     
